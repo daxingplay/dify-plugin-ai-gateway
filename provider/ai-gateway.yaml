@@ -1,10 +1,10 @@
 provider: ai-gateway
 label:
-  en_US: "AiGateway"
+  en_US: "AI Gateway"
 description:
   en_US: "Models provided by ai-gateway."
-  zh_Hans: "AiGateway 提供的模型。"
-  ja_JP: "AiGatewayが提供するモデル。"
+  zh_Hans: "AI Gateway 提供的模型。"
+  ja_JP: "AI Gatewayが提供するモデル。"
 icon_small:
   en_US: "icon_s_en.svg"
 icon_large:
@@ -33,7 +33,7 @@ model_credential_schema:
       zh_Hans: 输入模型名称
       ja_JP: モデル名を入力してください
   credential_form_schemas:
-    - variable: openai_api_key
+    - variable: api_key
       label:
         en_US: API Key
       type: secret-input
@@ -41,16 +41,238 @@ model_credential_schema:
       placeholder:
         zh_Hans: 在此输入您的 API Key
         en_US: Enter your API Key
-provider_credential_schema:
-  credential_form_schemas:
-    - variable: openai_api_key
+    - variable: endpoint_url
       label:
-        en_US: API Key
-      type: secret-input
+        zh_Hans: API endpoint URL
+        en_US: API endpoint URL
+      type: text-input
       required: true
       placeholder:
-        zh_Hans: 在此输入您的 API Key
-        en_US: Enter your API Key
+        zh_Hans: Base URL, e.g. https://api.openai.com/v1
+        en_US: Base URL, e.g. https://api.openai.com/v1
+    - variable: endpoint_model_name
+      label:
+        zh_Hans: API endpoint中的模型名称
+        en_US: model name for API endpoint
+      type: text-input
+      required: false
+      placeholder:
+        zh_Hans: endpoint model name, e.g. chatgpt4.0
+        en_US: endpoint model name, e.g. chatgpt4.0
+    - variable: mode
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        zh_Hans: 对话类型
+        en_US: Completion mode
+      type: select
+      required: false
+      default: chat
+      placeholder:
+        zh_Hans: 选择对话类型
+        en_US: Select completion mode
+      options:
+        - value: completion
+          label:
+            en_US: Completion
+            zh_Hans: 补全
+        - value: chat
+          label:
+            en_US: Chat
+            zh_Hans: 对话
+    - variable: context_size
+      label:
+        zh_Hans: 模型上下文长度
+        en_US: Model context size
+      required: true
+      show_on:
+        - variable: __model_type
+          value: llm
+      type: text-input
+      default: "4096"
+      placeholder:
+        zh_Hans: 在此输入您的模型上下文长度
+        en_US: Enter your Model context size
+    - variable: context_size
+      label:
+        zh_Hans: 模型上下文长度
+        en_US: Model context size
+      required: true
+      show_on:
+        - variable: __model_type
+          value: text-embedding
+      type: text-input
+      default: "4096"
+      placeholder:
+        zh_Hans: 在此输入您的模型上下文长度
+        en_US: Enter your Model context size
+    - variable: context_size
+      label:
+        zh_Hans: 模型上下文长度
+        en_US: Model context size
+      required: true
+      show_on:
+        - variable: __model_type
+          value: rerank
+      type: text-input
+      default: "4096"
+      placeholder:
+        zh_Hans: 在此输入您的模型上下文长度
+        en_US: Enter your Model context size
+    - variable: max_tokens_to_sample
+      label:
+        zh_Hans: 最大 token 上限
+        en_US: Upper bound for max tokens
+      show_on:
+        - variable: __model_type
+          value: llm
+      default: "4096"
+      type: text-input
+    - variable: agent_though_support
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        en_US: Thinking Mode Support
+        zh_Hans: 思考模式支持
+      type: select
+      required: false
+      default: not_supported
+      options:
+        - value: only_thinking_supported
+          label:
+            en_US: Only Thinking Mode
+            zh_Hans: 仅支持思考模式
+        - value: not_supported
+          label:
+            en_US: Only Non-Thinking Mode
+            zh_Hans: 仅支持非思考模式
+        - value: supported
+          label:
+            en_US: Both Modes
+            zh_Hans: 两种模式都支持
+      help:
+        en_US: Configure whether the model supports thinking mode, non-thinking mode, or both. This will control the availability of the thinking mode toggle.
+        zh_Hans: 配置模型是否支持思考模式、非思考模式或两者都支持。这将控制思考模式开关的可用性。
+    - variable: function_calling_type
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        zh_Hans: 函数调用类型
+        en_US: Function Call Type
+      type: select
+      required: false
+      default: no_call
+      options:
+        - value: function_call
+          label:
+            en_US: Function Call
+            zh_Hans: 函数调用
+        - value: tool_call
+          label:
+            en_US: Tool Call
+            zh_Hans: 工具调用
+        - value: no_call
+          label:
+            en_US: Not Support
+            zh_Hans: 不支持
+    - variable: stream_function_calling
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        zh_Hans: 流式函数调用
+        en_US: Stream function calling
+      type: select
+      required: false
+      default: not_supported
+      options:
+        - value: supported
+          label:
+            en_US: Support
+            zh_Hans: 支持
+        - value: not_supported
+          label:
+            en_US: Not Support
+            zh_Hans: 不支持
+    - variable: vision_support
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        zh_Hans: 视觉支持
+        en_US: Vision Support
+      type: select
+      required: false
+      default: no_support
+      options:
+        - value: support
+          label:
+            en_US: Support
+            zh_Hans: 支持
+        - value: no_support
+          label:
+            en_US: Not Support
+            zh_Hans: 不支持
+    - variable: structured_output_support
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        zh_Hans: 结构化输出
+        en_US: Structured Output
+      type: select
+      required: false
+      default: not_supported
+      options:
+        - value: supported
+          label:
+            en_US: Support
+            zh_Hans: 支持
+        - value: not_supported
+          label:
+            en_US: Not Support
+            zh_Hans: 不支持
+    - variable: stream_mode_auth
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        zh_Hans: 流模式授权
+        en_US: Stream mode auth
+      type: select
+      required: false
+      default: not_use
+      options:
+        - value: use
+          label:
+            en_US: Use
+            zh_Hans: 使用
+        - value: not_use
+          label:
+            en_US: Not Use
+            zh_Hans: 不使用
+    - variable: stream_mode_delimiter
+      label:
+        zh_Hans: 流模式返回结果的分隔符
+        en_US: Delimiter for streaming results
+      show_on:
+        - variable: __model_type
+          value: llm
+      default: '\n\n'
+      type: text-input
+# provider_credential_schema:
+#   credential_form_schemas:
+#     - variable: openai_api_key
+#       label:
+#         en_US: API Key
+#       type: secret-input
+#       required: true
+#       placeholder:
+#         zh_Hans: 在此输入您的 API Key
+#         en_US: Enter your API Key
 models:
   llm:
     predefined:
