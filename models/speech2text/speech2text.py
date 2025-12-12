@@ -84,9 +84,12 @@ class AiGatewaySpeech2TextModel(OAICompatSpeech2TextModel):
             "prompt": prompt,
         }
         files = [("file", file)]
-        response = requests.post(
-            endpoint_url, headers=headers, data=payload, files=files
-        )  # noqa: S113
+        try:
+            response = requests.post(
+                endpoint_url, headers=headers, data=payload, files=files
+            )  # noqa: S113
+        except Exception as e:
+            raise InvokeBadRequestError(f"Request failed: {str(e)}") from e
 
         if response.status_code != 200:
             raise InvokeBadRequestError(response.text)

@@ -20,6 +20,7 @@ from dify_plugin.entities.model.message import (
     PromptMessageTool,
     SystemPromptMessage,
 )
+from dify_plugin.errors.model import CredentialsValidateFailedError
 from dify_plugin.interfaces.model.openai_compatible.llm import (
     OAICompatLargeLanguageModel,
 )
@@ -36,6 +37,28 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
 
     # Pre-compiled regex for better performance
     _THINK_PATTERN = re.compile(r"^<think>.*?</think>\s*", re.DOTALL)
+
+    def validate_credentials(self, model: str, credentials: dict) -> None:
+        """
+        Validate model credentials
+
+        :param model: model name
+        :param credentials: model credentials
+        :return:
+        """
+        try:
+            super().validate_credentials(model, credentials)
+        except UnboundLocalError as e:
+            # Handle case where base class tries to access 'response' before
+            # it's assigned (e.g., when auth preparation fails)
+            if "response" in str(e):
+                raise CredentialsValidateFailedError(
+                    "Credentials validation failed: authentication setup error"
+                ) from e
+            raise
+        except Exception as ex:
+            # Re-raise as CredentialsValidateFailedError for consistency
+            raise CredentialsValidateFailedError(str(ex)) from ex
 
     def get_customizable_model_schema(
         self, model: str, credentials: Union[Mapping, dict]
@@ -108,7 +131,7 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
                     ),
                     zh_Hans="选择一种认证方式：API Key、JWT 或 HMAC。必填。",
                 ),
-                type=ParameterType.SELECT,
+                type=ParameterType.STRING,
                 options=["api_key", "jwt", "hmac"],
                 required=True,
             )
@@ -133,7 +156,7 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
                         '{"k":"...","kty":"oct","alg":"HS256"}）。'
                     ),
                 ),
-                type=ParameterType.TEXT_AREA,
+                type=ParameterType.TEXT,
                 required=False,
                 show_on=[{"variable": "auth_method", "value": "jwt"}],
             )
@@ -142,7 +165,7 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
             ParameterRule(
                 name="jwt_algorithm",
                 label=I18nObject(en_US="JWT Algorithm", zh_Hans="JWT 算法"),
-                type=ParameterType.SELECT,
+                type=ParameterType.STRING,
                 options=[
                     "HS256",
                     "HS384",
@@ -193,7 +216,7 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
                     ),
                     zh_Hans="过期时间（秒），最大 604800/7 天，默认 7200。",
                 ),
-                type=ParameterType.NUMBER,
+                type=ParameterType.INT,
                 required=False,
                 default=7200,
                 show_on=[{"variable": "auth_method", "value": "jwt"}],
@@ -251,7 +274,7 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
             ParameterRule(
                 name="hmac_secret_key",
                 label=I18nObject(en_US="HMAC Secret Key", zh_Hans="HMAC Secret Key"),
-                type=ParameterType.SECRET_INPUT,
+                type=ParameterType.STRING,
                 required=False,
                 show_on=[{"variable": "auth_method", "value": "hmac"}],
             )
