@@ -1,4 +1,5 @@
 """Authentication utilities for AI Gateway models."""
+
 import base64
 import hashlib
 import hmac
@@ -105,9 +106,7 @@ def build_hmac_headers(
     to_sign_parts.append(path)
     string_to_sign = "\n".join(to_sign_parts)
 
-    signer = hmac.new(
-        secret_key.encode(), string_to_sign.encode(), hashlib.sha256
-    )
+    signer = hmac.new(secret_key.encode(), string_to_sign.encode(), hashlib.sha256)
     signature = base64.b64encode(signer.digest()).decode()
 
     headers = {
@@ -157,11 +156,9 @@ def prepare_auth_headers(
     elif auth_method == "hmac":
         access_key = credentials.get("hmac_access_key")
         secret_key = credentials.get("hmac_secret_key")
-        signature_headers = credentials.get("hmac_signature_headers")
         if not access_key or not secret_key:
             raise ValueError(
-                "hmac_access_key and hmac_secret_key are required "
-                "for HMAC auth"
+                "hmac_access_key and hmac_secret_key are required " "for HMAC auth"
             )
 
         hmac_headers = build_hmac_headers(
@@ -170,7 +167,7 @@ def prepare_auth_headers(
             body=body,
             access_key=access_key,
             secret_key=secret_key,
-            signature_headers=signature_headers,
+            signature_headers=None,
         )
         extra_headers.update(hmac_headers)
 
@@ -204,4 +201,3 @@ def get_api_path(credentials: dict, default_path: str) -> str:
     if not path.startswith("/"):
         path = "/" + path
     return path
-

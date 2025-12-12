@@ -256,25 +256,6 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
                 show_on=[{"variable": "auth_method", "value": "hmac"}],
             )
         )
-        entity.parameter_rules.append(
-            ParameterRule(
-                name="hmac_signature_headers",
-                label=I18nObject(
-                    en_US="HMAC Signature Headers",
-                    zh_Hans="HMAC 自定义签名头",
-                ),
-                help=I18nObject(
-                    en_US=(
-                        "Comma-separated custom headers to include in "
-                        "signature (e.g., foo,bar)."
-                    ),
-                    zh_Hans="用于签名的自定义头，逗号分隔（例如 foo,bar）。",
-                ),
-                type=ParameterType.STRING,
-                required=False,
-                show_on=[{"variable": "auth_method", "value": "hmac"}],
-            )
-        )
 
         # Configure thinking mode parameter based on model support
         agent_though_support = credentials.get("agent_though_support", "not_supported")

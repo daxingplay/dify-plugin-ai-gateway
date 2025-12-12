@@ -65,7 +65,7 @@ class AiGatewaySpeech2TextModel(OAICompatSpeech2TextModel):
                 body=body_bytes,
                 access_key=access_key,
                 secret_key=secret_key,
-                signature_headers=credentials.get("hmac_signature_headers"),
+                signature_headers=None,
             )
             headers.update(hmac_headers)
 

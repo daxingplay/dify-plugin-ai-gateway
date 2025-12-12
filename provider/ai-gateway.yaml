@@ -19,6 +19,10 @@ help:
     en_US: "https://__put_your_url_here__/account/api-keys"
 supported_model_types:
   - llm
+  - rerank
+  - speech2text
+  - text-embedding
+  - tts
 configurate_methods:
   - predefined-model
   - customizable-model
@@ -86,7 +90,7 @@ model_credential_schema:
       label:
         en_US: JWT JWKS
         zh_Hans: JWT JWKS
-      type: text-area
+      type: text-input
       required: false
       show_on:
         - variable: auth_method
@@ -102,18 +106,57 @@ model_credential_schema:
       default: HS256
       options:
         - value: HS256
+          label:
+            en_US: HS256
+            zh_Hans: HS256
         - value: HS384
+          label:
+            en_US: HS384
+            zh_Hans: HS384
         - value: HS512
+          label:
+            en_US: HS512
+            zh_Hans: HS512
         - value: RS256
+          label:
+            en_US: RS256
+            zh_Hans: RS256
         - value: RS384
+          label:
+            en_US: RS384
+            zh_Hans: RS384
         - value: RS512
+          label:
+            en_US: RS512
+            zh_Hans: RS512
         - value: ES256
+          label:
+            en_US: ES256
+            zh_Hans: ES256
         - value: ES384
+          label:
+            en_US: ES384
+            zh_Hans: ES384
         - value: ES512
+          label:
+            en_US: ES512
+            zh_Hans: ES512
         - value: PS256
+          label:
+            en_US: PS256
+            zh_Hans: PS256
         - value: PS384
+          label:
+            en_US: PS384
+            zh_Hans: PS384
         - value: PS512
+          label:
+            en_US: PS512
+            zh_Hans: PS512
         - value: EdDSA
+          label:
+            en_US: EdDSA
+            zh_Hans: EdDSA
       show_on:
         - variable: auth_method
           value: jwt
@@ -186,18 +229,6 @@ model_credential_schema:
         zh_Hans: HMAC Secret Key
       type: secret-input
       required: false
-      show_on:
-        - variable: auth_method
-          value: hmac
-    - variable: hmac_signature_headers
-      label:
-        en_US: HMAC Signature Headers
-        zh_Hans: HMAC 自定义签名头
-      type: text-input
-      required: false
-      placeholder:
-        en_US: comma separated, e.g. foo,bar
-        zh_Hans: 逗号分隔，例如 foo,bar
       show_on:
         - variable: auth_method
           value: hmac
@@ -421,6 +452,10 @@ models:
       - "models/llm/*.yaml"
 extra:
   python:
-    provider_source: provider/openai.py
+    provider_source: provider/ai-gateway.py
     model_sources:
       - "models/llm/llm.py"
+      - "models/text_embedding/text_embedding.py"
+      - "models/rerank/rerank.py"
+      - "models/tts/tts.py"
+      - "models/speech2text/speech2text.py"
