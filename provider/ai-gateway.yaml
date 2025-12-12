@@ -33,11 +33,34 @@ model_credential_schema:
       zh_Hans: 输入模型名称
       ja_JP: モデル名を入力してください
   credential_form_schemas:
+    - variable: auth_method
+      label:
+        en_US: Authentication Method
+        zh_Hans: 认证方式
+      type: select
+      required: true
+      default: api_key
+      options:
+        - value: api_key
+          label:
+            en_US: API Key
+            zh_Hans: API Key
+        - value: jwt
+          label:
+            en_US: JWT
+            zh_Hans: JWT
+        - value: hmac
+          label:
+            en_US: HMAC
+            zh_Hans: HMAC
     - variable: api_key
       label:
         en_US: API Key
       type: secret-input
-      required: true
+      required: false
+      show_on:
+        - variable: auth_method
+          value: api_key
       placeholder:
         zh_Hans: 在此输入您的 API Key
         en_US: Enter your API Key
@@ -59,6 +82,125 @@ model_credential_schema:
       placeholder:
         zh_Hans: endpoint model name, e.g. chatgpt4.0
         en_US: endpoint model name, e.g. chatgpt4.0
+    - variable: jwt_jwks
+      label:
+        en_US: JWT JWKS
+        zh_Hans: JWT JWKS
+      type: text-area
+      required: false
+      show_on:
+        - variable: auth_method
+          value: jwt
+      placeholder:
+        en_US: '{"k":"...","kty":"oct","alg":"HS256"}'
+        zh_Hans: '{"k":"...","kty":"oct","alg":"HS256"}'
+    - variable: jwt_algorithm
+      label:
+        en_US: JWT Algorithm
+        zh_Hans: JWT 算法
+      type: select
+      default: HS256
+      options:
+        - value: HS256
+        - value: HS384
+        - value: HS512
+        - value: RS256
+        - value: RS384
+        - value: RS512
+        - value: ES256
+        - value: ES384
+        - value: ES512
+        - value: PS256
+        - value: PS384
+        - value: PS512
+        - value: EdDSA
+      show_on:
+        - variable: auth_method
+          value: jwt
+    - variable: jwt_consumer_id
+      label:
+        en_US: JWT Consumer ID (uid)
+        zh_Hans: JWT 消费者标识(uid)
+      type: text-input
+      required: false
+      show_on:
+        - variable: auth_method
+          value: jwt
+      placeholder:
+        en_US: uid from AI Gateway consumer page
+        zh_Hans: 从 AI Gateway 消费者页面获取的 uid
+    - variable: jwt_expiration
+      label:
+        en_US: JWT Expiration (seconds)
+        zh_Hans: JWT 过期时间(秒)
+      type: text-input
+      required: false
+      default: "7200"
+      show_on:
+        - variable: auth_method
+          value: jwt
+      placeholder:
+        en_US: e.g. 7200 (max 604800)
+        zh_Hans: 例如 7200（最大 604800）
+    - variable: jwt_issuer
+      label:
+        en_US: JWT Issuer (iss)
+        zh_Hans: JWT 签发者(iss)
+      type: text-input
+      required: false
+      show_on:
+        - variable: auth_method
+          value: jwt
+    - variable: jwt_header_name
+      label:
+        en_US: JWT Header Name
+        zh_Hans: JWT 头名称
+      type: text-input
+      required: false
+      default: Authorization
+      show_on:
+        - variable: auth_method
+          value: jwt
+    - variable: jwt_header_prefix
+      label:
+        en_US: JWT Header Prefix
+        zh_Hans: JWT 头前缀
+      type: text-input
+      required: false
+      default: Bearer
+      show_on:
+        - variable: auth_method
+          value: jwt
+    - variable: hmac_access_key
+      label:
+        en_US: HMAC Access Key
+        zh_Hans: HMAC Access Key
+      type: text-input
+      required: false
+      show_on:
+        - variable: auth_method
+          value: hmac
+    - variable: hmac_secret_key
+      label:
+        en_US: HMAC Secret Key
+        zh_Hans: HMAC Secret Key
+      type: secret-input
+      required: false
+      show_on:
+        - variable: auth_method
+          value: hmac
+    - variable: hmac_signature_headers
+      label:
+        en_US: HMAC Signature Headers
+        zh_Hans: HMAC 自定义签名头
+      type: text-input
+      required: false
+      placeholder:
+        en_US: comma separated, e.g. foo,bar
+        zh_Hans: 逗号分隔，例如 foo,bar
+      show_on:
+        - variable: auth_method
+          value: hmac
     - variable: mode
       show_on:
         - variable: __model_type
