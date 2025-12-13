@@ -1,6 +1,6 @@
 version: 0.0.1
 type: plugin
-author: daxingplay
+author: aliyun
 name: ai-gateway
 label:
   en_US: ai-gateway
@@ -9,8 +9,8 @@ label:
   pt_BR: ai-gateway
 description:
   en_US: Alibaba Cloud AI Gateway plugin
-  ja_JP: Alibaba Cloud AI Gateway plugin
-  zh_Hans: Alibaba Cloud AI Gateway plugin
+  ja_JP: Alibaba Cloud AI网关プラグイン
+  zh_Hans: Alibaba Cloud AI网关插件
   pt_BR: Alibaba Cloud AI Gateway plugin
 icon: icon.png
 icon_dark: icon-dark.png
