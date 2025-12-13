@@ -3,7 +3,9 @@ import re
 from collections.abc import Mapping
 from contextlib import suppress
 from typing import Any, Dict, Generator, List, Optional, Union
+from urllib.parse import urljoin
 
+import requests
 from dify_plugin.entities.model import (
     AIModelEntity,
     DefaultParameterName,
@@ -12,7 +14,7 @@ from dify_plugin.entities.model import (
     ParameterRule,
     ParameterType,
 )
-from dify_plugin.entities.model.llm import LLMResult
+from dify_plugin.entities.model.llm import LLMMode, LLMResult
 from dify_plugin.entities.model.message import (
     AssistantPromptMessage,
     PromptMessage,
@@ -20,10 +22,11 @@ from dify_plugin.entities.model.message import (
     PromptMessageTool,
     SystemPromptMessage,
 )
-from dify_plugin.errors.model import CredentialsValidateFailedError
+from dify_plugin.errors.model import CredentialsValidateFailedError, InvokeError
 from dify_plugin.interfaces.model.openai_compatible.llm import (
     OAICompatLargeLanguageModel,
 )
+from pydantic import TypeAdapter
 
 from models.common.auth import get_api_path, prepare_auth_headers
 
@@ -348,4 +351,144 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
             stop,
             stream,
             user,
+        )
+
+    def _generate(
+        self,
+        model: str,
+        credentials: dict,
+        prompt_messages: list[PromptMessage],
+        model_parameters: dict,
+        tools: Optional[list[PromptMessageTool]] = None,
+        stop: Optional[list[str]] = None,
+        stream: bool = True,
+        user: Optional[str] = None,
+    ) -> Union[LLMResult, Generator]:
+        """
+        Override _generate to avoid DifyPluginEnv.MAX_REQUEST_TIMEOUT issue.
+
+        The base class tries to access DifyPluginEnv.MAX_REQUEST_TIMEOUT as
+        a class attribute, but in dify_plugin 0.6.2+ it's only an instance
+        attribute. We use a hardcoded timeout value instead.
+        """
+        headers = {
+            "Content-Type": "application/json",
+            "Accept-Charset": "utf-8",
+        }
+        extra_headers = credentials.get("extra_headers")
+        if extra_headers is not None:
+            headers = {
+                **headers,
+                **extra_headers,
+            }
+
+        api_key = credentials.get("api_key")
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        endpoint_url = credentials["endpoint_url"]
+        if not endpoint_url.endswith("/"):
+            endpoint_url += "/"
+
+        response_format = model_parameters.get("response_format")
+        if response_format:
+            if response_format == "json_schema":
+                json_schema = model_parameters.get("json_schema")
+                if not json_schema:
+                    raise ValueError(
+                        "Must define JSON Schema when response format is " "json_schema"
+                    )
+                try:
+                    schema = TypeAdapter(dict[str, Any]).validate_json(json_schema)
+                except Exception as exc:
+                    raise ValueError(
+                        f"not correct json_schema format: {json_schema}"
+                    ) from exc
+                model_parameters.pop("json_schema")
+                model_parameters["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": schema,
+                }
+            else:
+                model_parameters["response_format"] = {"type": response_format}
+        elif "json_schema" in model_parameters:
+            del model_parameters["json_schema"]
+
+        data = {
+            "model": credentials.get("endpoint_model_name", model),
+            "stream": stream,
+            **model_parameters,
+        }
+
+        completion_type = LLMMode.value_of(credentials["mode"])
+
+        if completion_type is LLMMode.CHAT:
+            endpoint_url = urljoin(endpoint_url, "chat/completions")
+            data["messages"] = [
+                self._convert_prompt_message_to_dict(m, credentials)
+                for m in prompt_messages
+            ]
+        elif completion_type is LLMMode.COMPLETION:
+            endpoint_url = urljoin(endpoint_url, "completions")
+            data["prompt"] = prompt_messages[0].content
+        else:
+            raise ValueError("Unsupported completion type for model configuration.")
+
+        # annotate tools with names, descriptions, etc.
+        from dify_plugin.entities.model.message import PromptMessageFunction
+
+        function_calling_type = credentials.get("function_calling_type", "no_call")
+        formatted_tools = []
+        if tools:
+            if function_calling_type == "function_call":
+                data["functions"] = [
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.parameters,
+                    }
+                    for tool in tools
+                ]
+            elif function_calling_type == "tool_call":
+                data["tool_choice"] = "auto"
+
+                for tool in tools:
+                    formatted_tools.append(
+                        PromptMessageFunction(function=tool).model_dump()
+                    )
+
+                data["tools"] = formatted_tools
+
+        if stop:
+            data["stop"] = stop
+
+        if user:
+            data["user"] = user
+
+        # Use hardcoded timeout instead of DifyPluginEnv.MAX_REQUEST_TIMEOUT
+        # which is not available as a class attribute in dify_plugin 0.6.2+
+        response = requests.post(
+            endpoint_url,
+            headers=headers,
+            json=data,
+            timeout=(10, 120),  # hardcoded: (connection, read) timeout
+            stream=stream,
+        )
+
+        if response.encoding is None or response.encoding == "ISO-8859-1":
+            response.encoding = "utf-8"
+
+        if response.status_code != 200:
+            raise InvokeError(
+                f"API request failed with status code "
+                f"{response.status_code}: {response.text}"
+            )
+
+        if stream:
+            return self._handle_generate_stream_response(
+                model, credentials, response, prompt_messages
+            )
+
+        return self._handle_generate_response(
+            model, credentials, response, prompt_messages
         )
