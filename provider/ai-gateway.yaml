@@ -6,9 +6,9 @@ description:
   zh_Hans: "AI Gateway 提供的模型。"
   ja_JP: "AI Gatewayが提供するモデル。"
 icon_small:
-  en_US: "icon_s_en.svg"
+  en_US: "icon.png"
 icon_large:
-  en_US: "icon_l_en.svg"
+  en_US: "icon-l.png"
 background: "#E5E7EB"
 help:
   title:
