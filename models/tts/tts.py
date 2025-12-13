@@ -4,7 +4,6 @@ from dify_plugin.entities.model import AIModelEntity
 from dify_plugin.interfaces.model.openai_compatible.tts import OAICompatText2SpeechModel
 
 from models.common.helpers import apply_display_name
-from models.common.schema import add_auth_parameter_rules
 
 
 class AiGatewayText2SpeechModel(OAICompatText2SpeechModel):
@@ -16,6 +15,5 @@ class AiGatewayText2SpeechModel(OAICompatText2SpeechModel):
         entity = super().get_customizable_model_schema(model, credentials)
 
         apply_display_name(entity, credentials)
-        add_auth_parameter_rules(entity)
 
         return entity

@@ -10,7 +10,6 @@ from dify_plugin.interfaces.model.openai_compatible.speech2text import (
 
 from models.common.auth import build_hmac_headers, generate_jwt_token, get_api_path
 from models.common.helpers import apply_display_name
-from models.common.schema import add_auth_parameter_rules
 
 
 class AiGatewaySpeech2TextModel(OAICompatSpeech2TextModel):
@@ -112,6 +111,5 @@ class AiGatewaySpeech2TextModel(OAICompatSpeech2TextModel):
         )
 
         apply_display_name(entity, credentials)
-        add_auth_parameter_rules(entity)
 
         return entity

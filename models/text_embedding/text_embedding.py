@@ -2,11 +2,11 @@ from typing import Mapping, Optional
 
 from dify_plugin.entities.model import AIModelEntity, EmbeddingInputType
 from dify_plugin.entities.model.text_embedding import TextEmbeddingResult
-from dify_plugin.interfaces.model.openai_compatible.text_embedding import \
-    OAICompatEmbeddingModel
+from dify_plugin.interfaces.model.openai_compatible.text_embedding import (
+    OAICompatEmbeddingModel,
+)
 
 from models.common.helpers import apply_display_name
-from models.common.schema import add_auth_parameter_rules
 
 
 class AiGatewayTextEmbeddingModel(OAICompatEmbeddingModel):
@@ -19,7 +19,6 @@ class AiGatewayTextEmbeddingModel(OAICompatEmbeddingModel):
         entity = super().get_customizable_model_schema(model, credentials)
 
         apply_display_name(entity, credentials)
-        add_auth_parameter_rules(entity)
 
         return entity
 
@@ -47,9 +46,7 @@ class AiGatewayTextEmbeddingModel(OAICompatEmbeddingModel):
 
         return super()._invoke(model, credentials, texts, user)
 
-    def _get_prefix(
-        self, credentials: dict, input_type: EmbeddingInputType
-    ) -> str:
+    def _get_prefix(self, credentials: dict, input_type: EmbeddingInputType) -> str:
         if input_type == EmbeddingInputType.DOCUMENT:
             return credentials.get("document_prefix", "")
 

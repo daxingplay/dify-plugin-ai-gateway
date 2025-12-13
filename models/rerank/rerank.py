@@ -5,7 +5,6 @@ from dify_plugin.errors.model import CredentialsValidateFailedError
 from dify_plugin.interfaces.model.openai_compatible.rerank import OAICompatRerankModel
 
 from models.common.helpers import apply_display_name
-from models.common.schema import add_auth_parameter_rules
 
 
 class AiGatewayRerankModel(OAICompatRerankModel):
@@ -49,6 +48,5 @@ class AiGatewayRerankModel(OAICompatRerankModel):
         entity = super().get_customizable_model_schema(model, credentials)
 
         apply_display_name(entity, credentials)
-        add_auth_parameter_rules(entity)
 
         return entity

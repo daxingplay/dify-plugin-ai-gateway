@@ -106,7 +106,11 @@ def build_hmac_headers(
     to_sign_parts.append(path)
     string_to_sign = "\n".join(to_sign_parts)
 
-    signer = hmac.new(secret_key.encode(), string_to_sign.encode(), hashlib.sha256)
+    signer = hmac.new(
+        secret_key.encode(),
+        string_to_sign.encode(),
+        hashlib.sha256,
+    )
     signature = base64.b64encode(signer.digest()).decode()
 
     headers = {
