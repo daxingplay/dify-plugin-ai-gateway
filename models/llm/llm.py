@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from collections.abc import Mapping
 from contextlib import suppress
@@ -6,31 +7,28 @@ from typing import Any, Dict, Generator, List, Optional, Union
 from urllib.parse import urljoin
 
 import requests
-from dify_plugin.entities.model import (
-    AIModelEntity,
-    DefaultParameterName,
-    I18nObject,
-    ModelFeature,
-    ParameterRule,
-    ParameterType,
-)
+from dify_plugin.config.logger_format import plugin_logger_handler
+from dify_plugin.entities.model import (AIModelEntity, DefaultParameterName,
+                                        I18nObject, ModelFeature,
+                                        ParameterRule, ParameterType)
 from dify_plugin.entities.model.llm import LLMMode, LLMResult
-from dify_plugin.entities.model.message import (
-    AssistantPromptMessage,
-    PromptMessage,
-    PromptMessageRole,
-    PromptMessageTool,
-    SystemPromptMessage,
-)
-from dify_plugin.errors.model import CredentialsValidateFailedError, InvokeError
-from dify_plugin.interfaces.model.openai_compatible.llm import (
-    OAICompatLargeLanguageModel,
-)
+from dify_plugin.entities.model.message import (AssistantPromptMessage,
+                                                PromptMessage,
+                                                PromptMessageRole,
+                                                PromptMessageTool,
+                                                SystemPromptMessage)
+from dify_plugin.errors.model import (CredentialsValidateFailedError,
+                                      InvokeError)
+from dify_plugin.interfaces.model.openai_compatible.llm import \
+    OAICompatLargeLanguageModel
 from pydantic import TypeAdapter
 
 from models.common.auth import get_api_path, prepare_auth_headers
 
-logger = None
+# Setup logger with Dify plugin handler
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(plugin_logger_handler)
 
 
 class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
@@ -49,19 +47,150 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
         :param credentials: model credentials
         :return:
         """
+        logger.info(f"Validating credentials for model: {model}")
+        auth_method = credentials.get("auth_method", "api_key")
+        logger.debug(f"Auth method: {auth_method}")
+
+        # For api_key auth, delegate to base class
+        if auth_method == "api_key":
+            try:
+                super().validate_credentials(model, credentials)
+                logger.info(
+                    f"Credentials validated successfully for model: {model}"
+                )
+                return
+            except UnboundLocalError as e:
+                if "response" in str(e):
+                    logger.error(
+                        f"Credentials validation failed: UnboundLocalError - {e}"
+                    )
+                    raise CredentialsValidateFailedError(
+                        "Credentials validation failed: authentication setup error"
+                    ) from e
+                raise
+            except Exception as ex:
+                exc_type = type(ex).__name__
+                logger.error(
+                    f"Credentials validation failed: {exc_type} - {ex}"
+                )
+                raise CredentialsValidateFailedError(str(ex)) from ex
+
+        # For JWT and HMAC, make our own validation request
+        # since the base class doesn't support these auth methods
         try:
-            super().validate_credentials(model, credentials)
-        except UnboundLocalError as e:
-            # Handle case where base class tries to access 'response' before
-            # it's assigned (e.g., when auth preparation fails)
-            if "response" in str(e):
-                raise CredentialsValidateFailedError(
-                    "Credentials validation failed: authentication setup error"
-                ) from e
+            self._validate_credentials_with_custom_auth(model, credentials)
+            logger.info(
+                f"Credentials validated successfully for model: {model}"
+            )
+        except CredentialsValidateFailedError:
             raise
         except Exception as ex:
-            # Re-raise as CredentialsValidateFailedError for consistency
+            exc_type = type(ex).__name__
+            logger.error(
+                f"Credentials validation failed: {exc_type} - {ex}"
+            )
             raise CredentialsValidateFailedError(str(ex)) from ex
+
+    def _validate_credentials_with_custom_auth(
+        self, model: str, credentials: dict
+    ) -> None:
+        """
+        Validate credentials using custom HTTP request for JWT/HMAC auth.
+
+        :param model: model name
+        :param credentials: model credentials
+        :raises CredentialsValidateFailedError: if validation fails
+        """
+        auth_method = credentials.get("auth_method")
+        mode = credentials.get("mode", "chat")
+        logger.debug(
+            f"Custom auth validation: auth_method={auth_method}, mode={mode}"
+        )
+
+        # Build endpoint URL
+        endpoint_url = credentials.get("endpoint_url", "")
+        if not endpoint_url:
+            raise CredentialsValidateFailedError("endpoint_url is required")
+        if not endpoint_url.endswith("/"):
+            endpoint_url += "/"
+
+        # Build request payload
+        if mode == "completion":
+            api_suffix = "completions"
+            payload: Dict[str, Any] = {
+                "model": credentials.get("endpoint_model_name") or model,
+                "prompt": "ping",
+                "max_tokens": 5,
+            }
+        else:
+            api_suffix = "chat/completions"
+            payload = {
+                "model": credentials.get("endpoint_model_name") or model,
+                "messages": [{"role": "user", "content": "ping"}],
+                "max_tokens": 5,
+            }
+
+        full_url = urljoin(endpoint_url, api_suffix)
+        api_path = get_api_path(credentials, f"/{api_suffix}")
+
+        # Serialize payload for signing (HMAC) and sending
+        body_bytes = json.dumps(
+            payload, ensure_ascii=False, separators=(",", ":")
+        ).encode()
+        logger.debug(f"Validation request URL: {full_url}")
+        logger.debug(f"Validation payload size: {len(body_bytes)} bytes")
+
+        # Prepare auth headers first
+        extra_headers: Dict[str, str] = {}
+        prepare_auth_headers(
+            credentials=credentials,
+            method="POST",
+            path=api_path,
+            body=body_bytes,
+            extra_headers=extra_headers,
+        )
+
+        # For HMAC, build_hmac_headers already provides content-type and accept
+        # So we start with extra_headers to avoid duplicates
+        if auth_method == "hmac":
+            headers = extra_headers
+        else:
+            # For JWT, set base headers then merge
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+            headers.update(extra_headers)
+            # For JWT, the token is set in credentials["api_key"] by prepare_auth_headers
+            api_key = credentials.get("api_key")
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+
+        logger.debug(f"Validation request headers: {list(headers.keys())}")
+
+        # Make the validation request
+        try:
+            response = requests.post(
+                full_url,
+                headers=headers,
+                data=body_bytes,
+                timeout=(10, 30),
+            )
+        except requests.RequestException as ex:
+            logger.error(f"Validation request failed: {ex}")
+            raise CredentialsValidateFailedError(
+                f"Connection failed: {ex}"
+            ) from ex
+
+        if response.status_code != 200:
+            error_msg = (
+                f"Validation failed with status {response.status_code}: "
+                f"{response.text[:500]}"
+            )
+            logger.error(error_msg)
+            raise CredentialsValidateFailedError(error_msg)
+
+        logger.debug(f"Validation response status: {response.status_code}")
 
     def get_customizable_model_schema(
         self, model: str, credentials: Union[Mapping, dict]
@@ -214,11 +343,20 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
         :return: full response or stream response chunk generator result
         """
         # Prepare authentication headers using common auth module
-        extra_headers: Dict[str, str] = model_parameters.get("extra_headers", {}) or {}
+        extra_headers: Dict[str, str] = (
+            model_parameters.get("extra_headers", {}) or {}
+        )
 
         # For HMAC, we need to build the request body first to sign it
         auth_method = credentials.get("auth_method")
+        logger.info(
+            f"Invoking LLM model: {model}, auth_method: {auth_method}, "
+            f"stream: {stream}"
+        )
+        logger.debug(f"Model parameters: {list(model_parameters.keys())}")
+
         if auth_method == "hmac":
+            logger.debug("Building request body for HMAC signature")
             # Build an approximate OpenAI-compatible request body for signing
             # Note: this mirrors the expected body shape for chat/completions
             payload: Dict[str, Any] = {
@@ -241,15 +379,24 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
                     content = getattr(msg, "content", None)
                     messages.append({"role": role, "content": content})
                 payload["messages"] = messages
+                msg_count = len(messages)
+                logger.debug(
+                    f"Serialized {msg_count} messages for HMAC signing"
+                )
 
             body_bytes = json.dumps(
                 payload, ensure_ascii=False, separators=(",", ":")
             ).encode()
+            body_len = len(body_bytes)
+            logger.debug(f"Request body size for HMAC: {body_len} bytes")
 
             # Derive path from endpoint_url and mode
             mode = credentials.get("mode", "chat")
-            api_path = "/completions" if mode == "completion" else "/chat/completions"
+            api_path = (
+                "/completions" if mode == "completion" else "/chat/completions"
+            )
             path = get_api_path(credentials, api_path)
+            logger.debug(f"API path for HMAC: {path}")
 
             # Prepare auth headers using common module
             prepare_auth_headers(
@@ -263,8 +410,11 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
             # For JWT and API key, we can use prepare_auth_headers with
             # empty body. The path doesn't matter for JWT/API key, but
             # we'll use a default
+            logger.debug(f"Preparing auth headers for {auth_method}")
             mode = credentials.get("mode", "chat")
-            api_path = "/completions" if mode == "completion" else "/chat/completions"
+            api_path = (
+                "/completions" if mode == "completion" else "/chat/completions"
+            )
             path = get_api_path(credentials, api_path)
             # Empty body for JWT/API key (not used for signing)
             body_bytes = b""
@@ -278,6 +428,9 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
 
         if extra_headers:
             model_parameters["extra_headers"] = extra_headers
+            logger.debug(
+                f"Extra headers prepared: {list(extra_headers.keys())}"
+            )
 
         # Compatibility adapter for Dify's 'json_schema' structured output
         # mode. The base class does not natively handle the 'json_schema'
