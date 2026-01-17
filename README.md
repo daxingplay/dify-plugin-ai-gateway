@@ -188,15 +188,6 @@ Depending on the model type, you can configure additional parameters to control 
   - `Support`: Enable JSON Schema enforcement for reliable structured data extraction.
   - `Not Support`: Standard text output (default).
 
-#### Advanced Stream Settings
-
-- **Stream Mode Auth** (`stream_mode_auth`):
-  - `Use`: Enable specific authentication or handling for streaming connections if required by your gateway configuration.
-  - `Not Use`: Standard streaming behavior (default).
-
-- **Stream Delimiter** (`stream_mode_delimiter`):
-  - Define custom delimiters (e.g., `\n\n`) for separating stream chunks if your gateway uses non-standard framing.
-
 #### Standard Parameters
 - **Context Size**: Maximum context window (e.g., 4096, 128000).
 - **Max Tokens**: Upper limit for generated tokens.
