@@ -152,6 +152,11 @@ def build_hmac_headers(
     string_to_sign = "\n".join(to_sign_parts)
 
     logger.debug(f"String to sign:\n{string_to_sign}")
+    # Also log with # for easy comparison with server's X-Ca-Error-Message
+    string_to_sign_debug = string_to_sign.replace("\n", "#")
+    logger.debug(
+        f"String to sign (with # for newlines): {string_to_sign_debug}"
+    )
 
     signer = hmac.new(
         secret_key.encode(),

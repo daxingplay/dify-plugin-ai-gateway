@@ -23,7 +23,6 @@ resource:
       text_embedding: true
       rerank: true
       tts: true
-      speech2text: true
       moderation: false
 plugins:
   models:

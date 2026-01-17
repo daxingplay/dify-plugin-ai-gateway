@@ -162,24 +162,45 @@ HMAC Secret Key: your-secret-key
 
 ### Step 3: Configure Model Parameters
 
-Depending on the model type, you can configure additional parameters:
+Depending on the model type, you can configure additional parameters to control model behavior:
 
-**For LLM Models**:
-- Temperature, Top P, Top K
-- Max tokens
-- Response format (text, json_object, json_schema)
-- Thinking mode (for reasoning models)
-- Stop sequences
+#### LLM Capabilities
+
+- **Thinking Mode Support** (`agent_though_support`):
+  - `Only Non-Thinking Mode` (default): Standard generation.
+  - `Only Thinking Mode`: Forces reasoning models (like o1, DeepSeek R1) to output reasoning traces.
+  - `Both Modes`: Allows users to toggle "Thinking Mode" per request. Note: This requires the model to support both modes or the gateway to handle the switching.
+
+- **Function/Tool Calling** (`function_calling_type`):
+  - `Not Support`: Disable tool use (default).
+  - `Function Call`: Use older OpenAI function calling format.
+  - `Tool Call`: Use newer OpenAI tool calling format (recommended for most modern models).
+
+- **Stream Function Calling** (`stream_function_calling`):
+  - `Support`: Enable streaming for function arguments (smoother UX).
+  - `Not Support`: Wait for full function call before streaming (default).
+
+- **Vision Support** (`vision_support`):
+  - `Support`: Enable image inputs for multimodal models (e.g., GPT-4o, Qwen-VL).
+  - `Not Support`: Text-only input (default).
+
+- **Structured Output** (`structured_output_support`):
+  - `Support`: Enable JSON Schema enforcement for reliable structured data extraction.
+  - `Not Support`: Standard text output (default).
+
+#### Standard Parameters
+- **Context Size**: Maximum context window (e.g., 4096, 128000).
+- **Max Tokens**: Upper limit for generated tokens.
+- **Completion Mode**: Switch between Chat (conversational) and Completion (text-continuation) modes.
 
 **For Embedding Models**:
-- Document prefix
-- Query prefix
-- Embedding dimensions
+- **Context Size**: Maximum tokens support.
+- **Dimensions**: Output vector size (if supported by model).
 
 **For Speech Models**:
-- Language
-- Voice selection
-- Audio format
+- **Language**: Target language.
+- **Voice**: Voice ID selection.
+- **Context Size**: Input limit.
 
 ## Usage Examples
 

@@ -20,7 +20,6 @@ help:
 supported_model_types:
   - llm
   - rerank
-  - speech2text
   - text-embedding
   - tts
 configurate_methods:
@@ -328,6 +327,45 @@ model_credential_schema:
       help:
         en_US: Configure whether the model supports thinking mode, non-thinking mode, or both. This will control the availability of the thinking mode toggle.
         zh_Hans: 配置模型是否支持思考模式、非思考模式或两者都支持。这将控制思考模式开关的可用性。
+    - variable: thinking_mode_provider
+      show_on:
+        - variable: __model_type
+          value: llm
+      label:
+        en_US: Thinking Mode Provider
+        zh_Hans: 思考模式提供商
+      type: select
+      required: false
+      default: vllm
+      options:
+        - value: vllm
+          label:
+            en_US: vLLM/SGLang
+            zh_Hans: vLLM/SGLang
+        - value: qwen
+          label:
+            en_US: Qwen (DashScope)
+            zh_Hans: 通义千问 (DashScope)
+      help:
+        en_US: Select the provider for thinking mode. vLLM/SGLang uses chat_template_kwargs, while Qwen (DashScope) uses enable_thinking and thinking_budget parameters directly.
+        zh_Hans: 选择思考模式提供商。vLLM/SGLang 使用 chat_template_kwargs，而通义千问 (DashScope) 直接使用 enable_thinking 和 thinking_budget 参数。
+    - variable: default_thinking_budget
+      show_on:
+        - variable: __model_type
+          value: llm
+        - variable: thinking_mode_provider
+          value: qwen
+      label:
+        en_US: Default Thinking Budget
+        zh_Hans: 默认思考预算
+      type: text-input
+      required: false
+      placeholder:
+        en_US: e.g. 10000 (max 38000)
+        zh_Hans: 例如 10000（最大 38000）
+      help:
+        en_US: Default maximum token length for the model's internal thinking chain. Only used when thinking mode is enabled for Qwen (DashScope) models. Can be overridden per request.
+        zh_Hans: 模型内部思考链的默认最大 token 长度。仅适用于启用思考模式的通义千问 (DashScope) 模型。可在每次请求时覆盖。
     - variable: function_calling_type
       show_on:
         - variable: __model_type
@@ -408,34 +446,6 @@ model_credential_schema:
           label:
             en_US: Not Support
             zh_Hans: 不支持
-    - variable: stream_mode_auth
-      show_on:
-        - variable: __model_type
-          value: llm
-      label:
-        zh_Hans: 流模式授权
-        en_US: Stream mode auth
-      type: select
-      required: false
-      default: not_use
-      options:
-        - value: use
-          label:
-            en_US: Use
-            zh_Hans: 使用
-        - value: not_use
-          label:
-            en_US: Not Use
-            zh_Hans: 不使用
-    - variable: stream_mode_delimiter
-      label:
-        zh_Hans: 流模式返回结果的分隔符
-        en_US: Delimiter for streaming results
-      show_on:
-        - variable: __model_type
-          value: llm
-      default: '\n\n'
-      type: text-input
 # provider_credential_schema:
 #   credential_form_schemas:
 #     - variable: openai_api_key
@@ -458,4 +468,3 @@ extra:
       - "models/text_embedding/text_embedding.py"
       - "models/rerank/rerank.py"
       - "models/tts/tts.py"
-      - "models/speech2text/speech2text.py"
