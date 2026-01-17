@@ -173,9 +173,7 @@ class AiGatewayRerankModel(OAICompatRerankModel):
                     rerank_results.append({
                         "index": index,
                         "score": score,
-                        "document": {
-                            "text": doc_text
-                        }
+                        "text": doc_text
                     })
 
             # Sort by score descending if not already (vLLM usually returns sorted)
@@ -186,6 +184,7 @@ class AiGatewayRerankModel(OAICompatRerankModel):
                 rerank_results = rerank_results[:top_n]
                 
             return RerankResult(
+                model=model,
                 usage=data.get("usage", {}),
                 docs=rerank_results
             )

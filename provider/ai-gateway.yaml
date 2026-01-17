@@ -20,7 +20,6 @@ help:
 supported_model_types:
   - llm
   - rerank
-  - speech2text
   - text-embedding
   - tts
 configurate_methods:
@@ -458,4 +457,3 @@ extra:
       - "models/text_embedding/text_embedding.py"
       - "models/rerank/rerank.py"
       - "models/tts/tts.py"
-      - "models/speech2text/speech2text.py"
