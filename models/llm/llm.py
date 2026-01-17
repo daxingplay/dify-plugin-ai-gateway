@@ -170,6 +170,9 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
 
         # Make the validation request
         try:
+            logger.debug(f"Validation request headers: {headers}")
+            logger.debug(f"Validation request body: {body_bytes}")
+            logger.debug(f"Validation request full_url: {full_url}")
             response = requests.post(
                 full_url,
                 headers=headers,
@@ -188,6 +191,20 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
                 f"{response.text[:500]}"
             )
             logger.error(error_msg)
+            
+            # Log AI Gateway signature debug info if present
+            # The X-Ca-Error-Message header contains the server's StringToSign
+            # with newlines replaced by # for debugging signature mismatches
+            ca_error = response.headers.get("X-Ca-Error-Message")
+            if ca_error:
+                logger.error(
+                    f"AI Gateway signature error details: {ca_error}"
+                )
+                logger.error(
+                    "Note: In StringToSign, '#' represents newline. "
+                    "Compare this with your client-side StringToSign."
+                )
+            
             raise CredentialsValidateFailedError(error_msg)
 
         logger.debug(f"Validation response status: {response.status_code}")
