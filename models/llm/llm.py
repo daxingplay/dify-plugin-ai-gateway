@@ -305,6 +305,53 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
                 )
             )
 
+        # Add Qwen-specific thinking_budget parameter when thinking mode
+        # is supported and provider is Qwen (DashScope)
+        thinking_mode_provider = credentials.get("thinking_mode_provider", "vllm")
+        if (
+            agent_though_support in ["supported", "only_thinking_supported"]
+            and thinking_mode_provider == "qwen"
+        ):
+            entity.parameter_rules.append(
+                ParameterRule(
+                    name="thinking_budget",
+                    label=I18nObject(
+                        en_US="Thinking Budget",
+                        zh_Hans="思考预算"
+                    ),
+                    help=I18nObject(
+                        en_US=(
+                            "Maximum token length for the model's internal "
+                            "thinking chain. Only applicable when thinking "
+                            "mode is enabled for Qwen (DashScope) models."
+                        ),
+                        zh_Hans=(
+                            "模型内部思考链的最大 token 长度。仅适用于启用了"
+                            "思考模式的通义千问 (DashScope) 模型。"
+                        ),
+                    ),
+                    type=ParameterType.INT,
+                    min=1,
+                    max=38000,
+                    required=False,
+                )
+            )
+
+        # Add VISION feature if vision support is enabled
+        vision_support = credentials.get("vision_support", "no_support")
+        if vision_support == "support":
+            if ModelFeature.VISION not in entity.features:
+                entity.features.append(ModelFeature.VISION)
+
+        # Add STREAM_TOOL_CALL feature if stream function calling
+        # is supported
+        stream_function_calling = credentials.get(
+            "stream_function_calling", "not_supported"
+        )
+        if stream_function_calling == "supported":
+            if ModelFeature.STREAM_TOOL_CALL not in entity.features:
+                entity.features.append(ModelFeature.STREAM_TOOL_CALL)
+
         return entity
 
     @classmethod
@@ -485,8 +532,14 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
                     )
 
         # Handle thinking mode based on model support configuration
-        agent_though_support = credentials.get("agent_though_support", "not_supported")
+        agent_though_support = credentials.get(
+            "agent_though_support", "not_supported"
+        )
+        thinking_mode_provider = credentials.get(
+            "thinking_mode_provider", "vllm"
+        )
         enable_thinking_value = None
+
         if agent_though_support == "only_thinking_supported":
             # Force enable thinking mode
             enable_thinking_value = True
@@ -495,17 +548,49 @@ class AiGatewayLargeLanguageModel(OAICompatLargeLanguageModel):
             enable_thinking_value = False
         else:
             # Both modes supported - use user's preference
-            user_enable_thinking = model_parameters.pop("enable_thinking", None)
+            user_enable_thinking = model_parameters.pop(
+                "enable_thinking", None
+            )
             if user_enable_thinking is not None:
                 enable_thinking_value = bool(user_enable_thinking)
 
+        # Handle thinking_budget parameter for Qwen models
+        # Use per-request value if provided, otherwise fall back to credential
+        thinking_budget = model_parameters.pop("thinking_budget", None)
+        if thinking_budget is None:
+            # Try to get default from credentials
+            default_budget = credentials.get("default_thinking_budget")
+            if default_budget:
+                try:
+                    thinking_budget = int(default_budget)
+                except (ValueError, TypeError):
+                    pass
+
         if enable_thinking_value is not None:
-            model_parameters.setdefault("chat_template_kwargs", {})[
-                "enable_thinking"
-            ] = enable_thinking_value
-            model_parameters.setdefault("chat_template_kwargs", {})[
-                "thinking"
-            ] = enable_thinking_value
+            if thinking_mode_provider == "qwen":
+                # Qwen (DashScope) uses enable_thinking and thinking_budget
+                # directly in the request body
+                model_parameters["enable_thinking"] = enable_thinking_value
+                if thinking_budget is not None and enable_thinking_value:
+                    model_parameters["thinking_budget"] = thinking_budget
+                logger.debug(
+                    "Qwen thinking mode: enable_thinking=%s, "
+                    "thinking_budget=%s",
+                    enable_thinking_value,
+                    thinking_budget,
+                )
+            else:
+                # vLLM/SGLang uses chat_template_kwargs
+                model_parameters.setdefault("chat_template_kwargs", {})[
+                    "enable_thinking"
+                ] = enable_thinking_value
+                model_parameters.setdefault("chat_template_kwargs", {})[
+                    "thinking"
+                ] = enable_thinking_value
+                logger.debug(
+                    "vLLM/SGLang thinking mode: enable_thinking=%s",
+                    enable_thinking_value,
+                )
 
         # Remove thinking content from assistant messages for better
         # performance.
